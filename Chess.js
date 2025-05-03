@@ -1,3 +1,52 @@
+// Move history tracking
+let moveHistory = [];
+let currentMove = -1;
+
+// Function to save move to history
+function saveMove(fromId, toId, fromPiece, toPiece) {
+    moveHistory.push({
+        fromId: fromId,
+        toId: toId,
+        fromPiece: fromPiece,
+        toPiece: toPiece
+    });
+    currentMove++;
+    document.getElementById('undoButton').disabled = false;
+}
+
+// Function to undo last move
+function undoMove() {
+    if (currentMove >= 0) {
+        const move = moveHistory[currentMove];
+        const fromBox = document.getElementById(move.fromId);
+        const toBox = document.getElementById(move.toId);
+        
+        // Restore the pieces
+        fromBox.innerText = move.fromPiece;
+        toBox.innerText = move.toPiece;
+        
+        // Update the display
+        coloring();
+        insertImage();
+        
+        // Update turn counter and display
+        tog--;
+        document.getElementById('tog').innerText = tog % 2 === 0 ? "Black's Turn" : "White's Turn";
+        
+        // Remove the move from history
+        moveHistory.pop();
+        currentMove--;
+        
+        // Disable undo button if no moves left
+        if (currentMove < 0) {
+            document.getElementById('undoButton').disabled = true;
+        }
+    }
+}
+
+// Add event listener for undo button
+document.getElementById('undoButton').addEventListener('click', undoMove);
+
 // Inserting the Images
 function insertImage() {
 
@@ -130,6 +179,9 @@ document.querySelectorAll('.box').forEach(item => {
                 if (i.style.backgroundColor == 'pink') {
                     pinkId = i.id
                     pinkText = i.innerText
+
+                    // Save the move before making it
+                    saveMove(pinkId, item.id, pinkText, item.innerText);
 
                     document.getElementById(pinkId).innerText = ''
                     item.innerText = pinkText
