@@ -597,30 +597,35 @@ document.querySelectorAll('.box').forEach(item => {
 
 
 
-        // winning()
-
-        numOfKings = 0
-
-
-        document.querySelectorAll('.box').forEach(win => {
-            if (win.innerText == 'Wking' || win.innerText == 'Bking') {
-                numOfKings += 1
-            }
-
-        })
-
-        if (numOfKings == 1) {
+        // Check for checkmate
+        if (isCheckmate(tog % 2 === 0 ? 'W' : 'B')) {
             setTimeout(() => {
-                // console.log(`${toggle}`) 
-                if (tog % 2 == 0) {
-                    alert('White Wins !!')
-                    location.reload()
+                const winner = tog % 2 === 0 ? 'Black' : 'White';
+                alert(`${winner} Wins by Checkmate!`);
+                location.reload();
+            }, 100);
+        }
+        // Check if king is captured (traditional win condition)
+        else {
+            numOfKings = 0;
+            document.querySelectorAll('.box').forEach(win => {
+                if (win.innerText == 'Wking' || win.innerText == 'Bking') {
+                    numOfKings += 1;
                 }
-                else if (tog % 2 !== 0) {
-                    alert('Black Wins !!')
-                    location.reload()
-                }
-            }, 100)
+            });
+
+            if (numOfKings == 1) {
+                setTimeout(() => {
+                    if (tog % 2 == 0) {
+                        alert('White Wins!');
+                        location.reload();
+                    }
+                    else if (tog % 2 !== 0) {
+                        alert('Black Wins!');
+                        location.reload();
+                    }
+                }, 100);
+            }
         }
 
 
@@ -759,3 +764,405 @@ document.querySelectorAll('.box').forEach(ee => {
         }
     })
 })
+
+// Function to check if a king is in check
+function isKingInCheck(kingColor) {
+    const king = document.querySelector(`.box[id^="b"]:contains("${kingColor}king")`);
+    if (!king) return false;
+    
+    const kingId = king.id;
+    const kingArr = Array.from(kingId);
+    kingArr.shift();
+    const kingSide = eval(kingArr.pop());
+    kingArr.push('0');
+    const kingUp = eval(kingArr.join(''));
+    const kingPos = kingSide + kingUp;
+    
+    // Check if any opponent piece can capture the king
+    const opponentColor = kingColor === 'W' ? 'B' : 'W';
+    const allPieces = document.querySelectorAll('.box');
+    
+    for (const piece of allPieces) {
+        if (piece.innerText.startsWith(opponentColor)) {
+            // Temporarily set the piece's position to pink to check its moves
+            const originalColor = piece.style.backgroundColor;
+            piece.style.backgroundColor = 'pink';
+            
+            // Get all possible moves for this piece
+            const moves = getPossibleMoves(piece);
+            
+            // Check if any move can capture the king
+            if (moves.includes(kingPos)) {
+                piece.style.backgroundColor = originalColor;
+                return true;
+            }
+            
+            piece.style.backgroundColor = originalColor;
+        }
+    }
+    return false;
+}
+
+// Function to get all possible moves for a piece
+function getPossibleMoves(piece) {
+    const moves = [];
+    const pieceId = piece.id;
+    const pieceArr = Array.from(pieceId);
+    pieceArr.shift();
+    const pieceSide = eval(pieceArr.pop());
+    pieceArr.push('0');
+    const pieceUp = eval(pieceArr.join(''));
+    const piecePos = pieceSide + pieceUp;
+    
+    // Get all green squares for this piece
+    const originalColor = piece.style.backgroundColor;
+    piece.style.backgroundColor = 'pink';
+    
+    // Call the appropriate movement function based on piece type
+    const pieceType = piece.innerText.substring(1);
+    switch(pieceType) {
+        case 'pawn':
+            getPawnMoves(piecePos, pieceUp, pieceSide, moves);
+            break;
+        case 'rook':
+            getRookMoves(piecePos, pieceUp, pieceSide, moves);
+            break;
+        case 'knight':
+            getKnightMoves(piecePos, pieceUp, pieceSide, moves);
+            break;
+        case 'bishop':
+            getBishopMoves(piecePos, pieceUp, pieceSide, moves);
+            break;
+        case 'queen':
+            getQueenMoves(piecePos, pieceUp, pieceSide, moves);
+            break;
+        case 'king':
+            getKingMoves(piecePos, pieceUp, pieceSide, moves);
+            break;
+    }
+    
+    piece.style.backgroundColor = originalColor;
+    return moves;
+}
+
+// Function to check if a move would put or leave the king in check
+function wouldBeInCheck(fromId, toId, pieceColor) {
+    // Save current state
+    const fromBox = document.getElementById(fromId);
+    const toBox = document.getElementById(toId);
+    const fromPiece = fromBox.innerText;
+    const toPiece = toBox.innerText;
+    
+    // Make the move
+    fromBox.innerText = '';
+    toBox.innerText = fromPiece;
+    
+    // Check if king is in check
+    const inCheck = isKingInCheck(pieceColor);
+    
+    // Restore the state
+    fromBox.innerText = fromPiece;
+    toBox.innerText = toPiece;
+    
+    return inCheck;
+}
+
+// Function to check for checkmate
+function isCheckmate(kingColor) {
+    if (!isKingInCheck(kingColor)) return false;
+    
+    // Get the king's position
+    const king = document.querySelector(`.box[id^="b"]:contains("${kingColor}king")`);
+    const kingId = king.id;
+    
+    // Try all possible moves for all pieces of the same color
+    const allPieces = document.querySelectorAll('.box');
+    for (const piece of allPieces) {
+        if (piece.innerText.startsWith(kingColor)) {
+            const moves = getPossibleMoves(piece);
+            for (const move of moves) {
+                if (!wouldBeInCheck(piece.id, `b${move}`, kingColor)) {
+                    return false; // Found a legal move that gets out of check
+                }
+            }
+        }
+    }
+    
+    return true; // No legal moves found to get out of check
+}
+
+// Helper functions for getting possible moves
+function getPawnMoves(pos, up, side, moves) {
+    const isWhite = document.getElementById(`b${pos}`).innerText.startsWith('W');
+    
+    if (isWhite) {
+        if (up < 800) {
+            if (document.getElementById(`b${pos + 100}`).innerText.length === 0) {
+                moves.push(pos + 100);
+                if (up === 200 && document.getElementById(`b${pos + 200}`).innerText.length === 0) {
+                    moves.push(pos + 200);
+                }
+            }
+        }
+        if (side < 8 && document.getElementById(`b${pos + 100 + 1}`).innerText.startsWith('B')) {
+            moves.push(pos + 100 + 1);
+        }
+        if (side > 1 && document.getElementById(`b${pos + 100 - 1}`).innerText.startsWith('B')) {
+            moves.push(pos + 100 - 1);
+        }
+    } else {
+        if (up > 100) {
+            if (document.getElementById(`b${pos - 100}`).innerText.length === 0) {
+                moves.push(pos - 100);
+                if (up === 700 && document.getElementById(`b${pos - 200}`).innerText.length === 0) {
+                    moves.push(pos - 200);
+                }
+            }
+        }
+        if (side < 8 && document.getElementById(`b${pos - 100 + 1}`).innerText.startsWith('W')) {
+            moves.push(pos - 100 + 1);
+        }
+        if (side > 1 && document.getElementById(`b${pos - 100 - 1}`).innerText.startsWith('W')) {
+            moves.push(pos - 100 - 1);
+        }
+    }
+}
+
+function getRookMoves(pos, up, side, moves) {
+    // Vertical moves
+    for (let i = 1; i < 9; i++) {
+        if ((pos + i * 100) < 900) {
+            const target = document.getElementById(`b${pos + i * 100}`);
+            if (target.innerText.length === 0) {
+                moves.push(pos + i * 100);
+            } else {
+                if (target.innerText[0] !== document.getElementById(`b${pos}`).innerText[0]) {
+                    moves.push(pos + i * 100);
+                }
+                break;
+            }
+        }
+    }
+    
+    for (let i = 1; i < 9; i++) {
+        if ((pos - i * 100) > 100) {
+            const target = document.getElementById(`b${pos - i * 100}`);
+            if (target.innerText.length === 0) {
+                moves.push(pos - i * 100);
+            } else {
+                if (target.innerText[0] !== document.getElementById(`b${pos}`).innerText[0]) {
+                    moves.push(pos - i * 100);
+                }
+                break;
+            }
+        }
+    }
+    
+    // Horizontal moves
+    for (let i = 1; i < 9; i++) {
+        if ((pos + i) < (up + 9)) {
+            const target = document.getElementById(`b${pos + i}`);
+            if (target.innerText.length === 0) {
+                moves.push(pos + i);
+            } else {
+                if (target.innerText[0] !== document.getElementById(`b${pos}`).innerText[0]) {
+                    moves.push(pos + i);
+                }
+                break;
+            }
+        }
+    }
+    
+    for (let i = 1; i < 9; i++) {
+        if ((pos - i) > up) {
+            const target = document.getElementById(`b${pos - i}`);
+            if (target.innerText.length === 0) {
+                moves.push(pos - i);
+            } else {
+                if (target.innerText[0] !== document.getElementById(`b${pos}`).innerText[0]) {
+                    moves.push(pos - i);
+                }
+                break;
+            }
+        }
+    }
+}
+
+function getKnightMoves(pos, up, side, moves) {
+    const pieceColor = document.getElementById(`b${pos}`).innerText[0];
+    
+    if (side < 7 && up < 800) {
+        const target = document.getElementById(`b${pos + 100 + 2}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos + 100 + 2);
+        }
+    }
+    if (side < 7 && up > 200) {
+        const target = document.getElementById(`b${pos - 100 + 2}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos - 100 + 2);
+        }
+    }
+    if (side < 8 && up < 700) {
+        const target = document.getElementById(`b${pos + 200 + 1}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos + 200 + 1);
+        }
+    }
+    if (side > 1 && up < 700) {
+        const target = document.getElementById(`b${pos + 200 - 1}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos + 200 - 1);
+        }
+    }
+    if (side > 2 && up < 800) {
+        const target = document.getElementById(`b${pos - 2 + 100}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos - 2 + 100);
+        }
+    }
+    if (side > 2 && up > 100) {
+        const target = document.getElementById(`b${pos - 2 - 100}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos - 2 - 100);
+        }
+    }
+    if (side < 8 && up > 200) {
+        const target = document.getElementById(`b${pos - 200 + 1}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos - 200 + 1);
+        }
+    }
+    if (side > 1 && up > 200) {
+        const target = document.getElementById(`b${pos - 200 - 1}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos - 200 - 1);
+        }
+    }
+}
+
+function getBishopMoves(pos, up, side, moves) {
+    const pieceColor = document.getElementById(`b${pos}`).innerText[0];
+    
+    // Diagonal moves
+    for (let i = 1; i < 9; i++) {
+        if (i < (900 - up) / 100 && i < 9 - side) {
+            const target = document.getElementById(`b${pos + i * 100 + i}`);
+            if (target.innerText.length === 0) {
+                moves.push(pos + i * 100 + i);
+            } else {
+                if (target.innerText[0] !== pieceColor) {
+                    moves.push(pos + i * 100 + i);
+                }
+                break;
+            }
+        }
+    }
+    
+    for (let i = 1; i < 9; i++) {
+        if (i < up / 100 && i < 9 - side) {
+            const target = document.getElementById(`b${pos - i * 100 + i}`);
+            if (target.innerText.length === 0) {
+                moves.push(pos - i * 100 + i);
+            } else {
+                if (target.innerText[0] !== pieceColor) {
+                    moves.push(pos - i * 100 + i);
+                }
+                break;
+            }
+        }
+    }
+    
+    for (let i = 1; i < 9; i++) {
+        if (i < (900 - up) / 100 && i < side) {
+            const target = document.getElementById(`b${pos + i * 100 - i}`);
+            if (target.innerText.length === 0) {
+                moves.push(pos + i * 100 - i);
+            } else {
+                if (target.innerText[0] !== pieceColor) {
+                    moves.push(pos + i * 100 - i);
+                }
+                break;
+            }
+        }
+    }
+    
+    for (let i = 1; i < 9; i++) {
+        if (i < up / 100 && i < side) {
+            const target = document.getElementById(`b${pos - i * 100 - i}`);
+            if (target.innerText.length === 0) {
+                moves.push(pos - i * 100 - i);
+            } else {
+                if (target.innerText[0] !== pieceColor) {
+                    moves.push(pos - i * 100 - i);
+                }
+                break;
+            }
+        }
+    }
+}
+
+function getQueenMoves(pos, up, side, moves) {
+    // Queen combines rook and bishop moves
+    getRookMoves(pos, up, side, moves);
+    getBishopMoves(pos, up, side, moves);
+}
+
+function getKingMoves(pos, up, side, moves) {
+    const pieceColor = document.getElementById(`b${pos}`).innerText[0];
+    
+    // Regular moves
+    if (side < 8) {
+        const target = document.getElementById(`b${pos + 1}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos + 1);
+        }
+    }
+    if (side > 1) {
+        const target = document.getElementById(`b${pos - 1}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos - 1);
+        }
+    }
+    if (up < 800) {
+        const target = document.getElementById(`b${pos + 100}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos + 100);
+        }
+    }
+    if (up > 100) {
+        const target = document.getElementById(`b${pos - 100}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos - 100);
+        }
+    }
+    
+    // Diagonal moves
+    if (up > 100 && side < 8) {
+        const target = document.getElementById(`b${pos - 100 + 1}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos - 100 + 1);
+        }
+    }
+    if (up > 100 && side > 1) {
+        const target = document.getElementById(`b${pos - 100 - 1}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos - 100 - 1);
+        }
+    }
+    if (up < 800 && side < 8) {
+        const target = document.getElementById(`b${pos + 100 + 1}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos + 100 + 1);
+        }
+    }
+    if (up < 800 && side > 1) {
+        const target = document.getElementById(`b${pos + 100 - 1}`);
+        if (target.innerText.length === 0 || target.innerText[0] !== pieceColor) {
+            moves.push(pos + 100 - 1);
+        }
+    }
+    
+    // Castling moves (if implemented)
+    // ... existing castling code ...
+}
